@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>飽福客服後台</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* ===================== 設定區 =====================
+   兩個都可以留空：留空的話第一次開啟會跳出表單讓你填，並記在這台裝置的瀏覽器裡。
+   anon key 是 Supabase 設計上可公開的那把（資料靠登入＋白名單保護），
+   但「service_role key」絕對不可以填在這個檔案裡。 */
+const SUPABASE_URL = 'https://uorcogyoadkdogsodvnh.supabase.co';
+const SUPABASE_ANON_KEY = '';
+/* ================================================== */
+</script>
+<style>
+  :root{
+    --bg:#f6f5f2; --panel:#ffffff; --line:#e4e1da; --text:#1f1d1a; --muted:#77726a;
+    --accent:#5b3fd1; --accent-ink:#ffffff; --in:#efede8; --out:#e6e0fb;
+    --warn:#b45309; --warn-bg:#fdf3e1; --bad:#b42318; --bad-bg:#fdecea; --ok:#15803d;
+    --line-c:#06c755; --fb-c:#1877f2; --ig-c:#d6336c; --th-c:#444;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#16151a; --panel:#1f1e25; --line:#33313b; --text:#ece9f5; --muted:#9a96a6;
+      --accent:#9d87ff; --accent-ink:#16151a; --in:#2a2932; --out:#342d5c;
+      --warn:#fbbf24; --warn-bg:#3a2e12; --bad:#f87171; --bad-bg:#3d1d1d; --ok:#4ade80; }
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{background:var(--bg);color:var(--text);font:15px/1.55 -apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif}
+  button,input,textarea{font:inherit;color:inherit}
+  button{cursor:pointer;border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:8px 14px}
+  button.primary{background:var(--accent);color:var(--accent-ink);border-color:transparent;font-weight:600}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  input,textarea{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+  textarea{resize:vertical;min-height:96px}
+  .hidden{display:none !important}
+
+  /* 登入 / 設定 */
+  .center{min-height:100%;display:grid;place-items:center;padding:16px}
+  .card{width:100%;max-width:380px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px}
+  .card h1{font-size:20px;margin:0 0 4px}
+  .card p{color:var(--muted);margin:0 0 16px;font-size:13px}
+  .card label{display:block;font-size:13px;color:var(--muted);margin:12px 0 4px}
+  .card button{width:100%;margin-top:16px}
+  .err{color:var(--bad);font-size:13px;margin-top:10px;min-height:1.2em}
+
+  /* 主畫面 */
+  #app{height:100%;display:grid;grid-template-columns:340px 1fr}
+  #side{border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;background:var(--panel)}
+  #side header{padding:14px 16px 10px;border-bottom:1px solid var(--line)}
+  #side h1{font-size:16px;margin:0;display:flex;justify-content:space-between;align-items:center}
+  #side h1 button{font-size:12px;padding:4px 10px}
+  .tabs{display:flex;gap:6px;margin-top:10px}
+  .tabs button{flex:1;padding:6px 0;font-size:13px}
+  .tabs button.on{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+  #list{overflow-y:auto;flex:1}
+  .conv{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:12px 16px;background:transparent}
+  .conv.on{background:var(--in)}
+  .conv .top{display:flex;gap:8px;align-items:center}
+  .conv .name{font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .conv .time{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .conv .last{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px}
+  .conv .meta{display:flex;gap:6px;align-items:center;margin-top:6px;font-size:12px}
+  .pf{color:#fff;border-radius:4px;padding:0 6px;font-size:11px;font-weight:600}
+  .pf.line{background:var(--line-c)} .pf.facebook{background:var(--fb-c)} .pf.instagram{background:var(--ig-c)} .pf.threads{background:var(--th-c)}
+  .brand{color:var(--muted)}
+  .unread{margin-left:auto;background:var(--bad);color:#fff;border-radius:10px;padding:0 7px;font-weight:600}
+  .flag{color:var(--warn);background:var(--warn-bg);border-radius:4px;padding:0 6px}
+  .empty{color:var(--muted);text-align:center;padding:40px 16px;font-size:14px}
+
+  #main{display:flex;flex-direction:column;min-height:0;min-width:0}
+  #mainhead{padding:12px 16px;border-bottom:1px solid var(--line);background:var(--panel);display:flex;gap:10px;align-items:center}
+  #mainhead .who{flex:1;min-width:0}
+  #mainhead .who b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #mainhead .who span{font-size:12px;color:var(--muted)}
+  #back{display:none}
+  #msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px}
+  .msg{max-width:min(78%,560px);padding:8px 12px;border-radius:14px;white-space:pre-wrap;word-break:break-word}
+  .msg.in{align-self:flex-start;background:var(--in);border-bottom-left-radius:4px}
+  .msg.out{align-self:flex-end;background:var(--out);border-bottom-right-radius:4px}
+  .msg small{display:block;font-size:11px;color:var(--muted);margin-top:2px}
+  #composer{border-top:1px solid var(--line);background:var(--panel);padding:12px 16px calc(12px + env(safe-area-inset-bottom))}
+  #draftlabel{font-size:12px;font-weight:600;color:var(--accent);margin-bottom:6px;display:flex;gap:8px;align-items:center}
+  #note{font-size:13px;border-radius:8px;padding:8px 10px;margin-bottom:8px;background:var(--warn-bg);color:var(--warn)}
+  #note.plain{background:var(--in);color:var(--muted)}
+  #state{font-size:13px;margin-bottom:8px;border-radius:8px;padding:8px 10px}
+  #state.bad{background:var(--bad-bg);color:var(--bad)} #state.wait{background:var(--in);color:var(--muted)}
+  #window{font-size:12px;color:var(--muted)}
+  #window.bad{color:var(--bad);font-weight:600}
+  .actions{display:flex;gap:8px;margin-top:8px;align-items:center}
+  .actions .spacer{flex:1}
+  .hint{font-size:12px;color:var(--warn)}
+
+  @media (max-width:760px){
+    #app{grid-template-columns:1fr}
+    #app.chat #side{display:none}
+    #app:not(.chat) #main{display:none}
+    #back{display:inline-block}
+  }
+</style>
+</head>
+<body>
+
+<!-- 第一次使用：填 Supabase 連線資訊 -->
+<div id="setup" class="center hidden">
+  <form class="card" id="setupForm">
+    <h1>第一次設定</h1>
+    <p>到 Supabase → Project Settings → API 複製這兩個值。只會存在這台裝置的瀏覽器裡。</p>
+    <label for="sUrl">Project URL</label>
+    <input id="sUrl" placeholder="https://xxxx.supabase.co" required>
+    <label for="sKey">anon / publishable key（不是 service_role）</label>
+    <input id="sKey" required>
+    <button class="primary">儲存</button>
+    <div class="err" id="setupErr"></div>
+  </form>
+</div>
+
+<!-- 登入 -->
+<div id="login" class="center hidden">
+  <form class="card" id="loginForm">
+    <h1>飽福客服後台</h1>
+    <p>AI 先起草，人按送出。</p>
+    <label for="email">Email</label>
+    <input id="email" type="email" autocomplete="username" required>
+    <label for="pw">密碼</label>
+    <input id="pw" type="password" autocomplete="current-password" required>
+    <button class="primary" id="loginBtn">登入</button>
+    <div class="err" id="loginErr"></div>
+  </form>
+</div>
+
+<!-- 主畫面 -->
+<div id="app" class="hidden">
+  <aside id="side">
+    <header>
+      <h1><span>客服收件匣</span><button id="logout">登出</button></h1>
+      <div class="tabs">
+        <button data-tab="todo" class="on">待處理</button>
+        <button data-tab="open">全部</button>
+        <button data-tab="closed">已結案</button>
+      </div>
+    </header>
+    <div id="list"></div>
+  </aside>
+  <section id="main">
+    <div id="nochat" class="empty" style="margin:auto">從左邊選一則對話</div>
+    <div id="chat" class="hidden" style="display:flex;flex-direction:column;min-height:0;flex:1">
+      <div id="mainhead">
+        <button id="back">‹ 返回</button>
+        <div class="who"><b id="whoName"></b><span id="whoMeta"></span></div>
+        <button id="closeBtn"></button>
+      </div>
+      <div id="msgs"></div>
+      <div id="composer">
+        <div id="draftlabel"><span id="draftTitle"></span><span id="window"></span></div>
+        <div id="note" class="hidden"></div>
+        <div id="state" class="hidden"></div>
+        <textarea id="reply" placeholder="輸入回覆…"></textarea>
+        <div class="actions">
+          <button id="discard" class="hidden">不採用草稿</button>
+          <span class="hint hidden" id="edited">已修改</span>
+          <span class="spacer"></span>
+          <button id="send" class="primary">送出</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const show = (el, on) => el.classList.toggle('hidden', !on);
+  const store = {
+    get(k){ try { return localStorage.getItem(k) || ''; } catch(e){ return ''; } },
+    set(k,v){ try { localStorage.setItem(k,v); } catch(e){} },
+  };
+  const PLATFORM = { line:'LINE', facebook:'Facebook', instagram:'Instagram', threads:'Threads' };
+
+  let sb = null, tab = 'todo', convs = [], drafts = {}, current = null, currentDraft = null;
+  let loadedDraftId = null, dirty = false, refreshTimer = null;
+
+  // ---------- 啟動 ----------
+  const url = SUPABASE_URL || store.get('cs_url');
+  const key = SUPABASE_ANON_KEY || store.get('cs_key');
+  if (!url || !key) { show($('setup'), true); } else { boot(url, key); }
+
+  $('setupForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const u = $('sUrl').value.trim().replace(/\/+$/,''), k = $('sKey').value.trim();
+    if (!/^https:\/\/.+/.test(u)) { $('setupErr').textContent = 'Project URL 要以 https:// 開頭'; return; }
+    if (/service_role/.test(safeDecode(k)) || k.startsWith('sb_secret_')) { $('setupErr').textContent = '這把是 service_role / secret key，不可以用在這裡。請改貼 anon / publishable key。'; return; }
+    store.set('cs_url', u); store.set('cs_key', k);
+    show($('setup'), false); boot(u, k);
+  });
+  function safeDecode(jwt){ try { return atob((jwt.split('.')[1]||'').replace(/-/g,'+').replace(/_/g,'/')); } catch(e){ return ''; } }
+
+  async function boot(u, k){
+    if (!window.supabase) { show($('setup'), true); $('setupErr').textContent = '載入 Supabase 程式庫失敗，請確認網路後重新整理。'; return; }
+    sb = window.supabase.createClient(u, k);
+    const { data } = await sb.auth.getSession();
+    if (data.session) enter(); else show($('login'), true);
+  }
+
+  $('loginForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    $('loginErr').textContent = ''; $('loginBtn').disabled = true;
+    const { error } = await sb.auth.signInWithPassword({ email: $('email').value.trim(), password: $('pw').value });
+    $('loginBtn').disabled = false;
+    if (error) { $('loginErr').textContent = '登入失敗：' + error.message; return; }
+    enter();
+  });
+
+  $('logout').addEventListener('click', async () => { await sb.auth.signOut(); location.reload(); });
+
+  async function enter(){
+    const { data: ok, error } = await sb.rpc('cs_is_staff');
+    if (error || !ok) {
+      await sb.auth.signOut();
+      show($('login'), true);
+      $('loginErr').textContent = error ? ('連線失敗：' + error.message) : '這個帳號不在 cs_staff 白名單內。';
+      return;
+    }
+    show($('login'), false); show($('app'), true);
+    await refresh();
+    sb.channel('cs-inbox')
+      .on('postgres_changes', { event:'*', schema:'public', table:'cs_conversations' }, scheduleRefresh)
+      .on('postgres_changes', { event:'*', schema:'public', table:'cs_messages' }, scheduleRefresh)
+      .on('postgres_changes', { event:'*', schema:'public', table:'cs_drafts' }, scheduleRefresh)
+      .subscribe();
+    setInterval(refresh, 30000);          // 即時通道斷線時的保底
+    setInterval(renderWindow, 60000);
+  }
+  function scheduleRefresh(){ clearTimeout(refreshTimer); refreshTimer = setTimeout(refresh, 250); }
+
+  // ---------- 資料 ----------
+  async function refresh(){
+    const [c, d] = await Promise.all([
+      sb.from('cs_conversations').select('*').order('last_message_at', { ascending:false, nullsFirst:false }).limit(200),
+      sb.from('cs_drafts').select('*').in('status', ['pending','approved','sending','failed']).order('created_at', { ascending:true }),
+    ]);
+    if (c.error) { $('list').innerHTML = ''; $('list').appendChild(emptyEl('讀取失敗：' + c.error.message)); return; }
+    convs = c.data || [];
+    drafts = {};
+    (d.data || []).forEach(x => { drafts[x.conversation_id] = x; });   // 由舊到新，最後留下最新一份
+    renderList();
+    if (current) {
+      current = convs.find(x => x.id === current.id) || current;
+      await renderChat(false);
+    }
+  }
+
+  function needsAction(c){
+    const d = drafts[c.id];
+    return c.status === 'open' && (c.unread_count > 0 || (d && (d.status === 'pending' || d.status === 'failed')));
+  }
+
+  // ---------- 清單 ----------
+  document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => {
+    tab = b.dataset.tab;
+    document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x === b));
+    renderList();
+  }));
+
+  function emptyEl(t){ const e = document.createElement('div'); e.className = 'empty'; e.textContent = t; return e; }
+  function el(tag, cls, text){ const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+  function renderList(){
+    const list = $('list'); list.innerHTML = '';
+    const rows = convs.filter(c => tab === 'todo' ? needsAction(c) : tab === 'open' ? c.status === 'open' : c.status === 'closed');
+    if (!rows.length) { list.appendChild(emptyEl(tab === 'todo' ? '目前沒有待處理的訊息' : '沒有對話')); return; }
+    rows.forEach(c => {
+      const d = drafts[c.id];
+      const b = el('button', 'conv' + (current && current.id === c.id ? ' on' : ''));
+      const top = el('div', 'top');
+      top.appendChild(el('span', 'name', c.display_name || '（未取得名稱）'));
+      top.appendChild(el('span', 'time', fmtTime(c.last_message_at)));
+      b.appendChild(top);
+      b.appendChild(el('div', 'last', c.last_message_text || ''));
+      const meta = el('div', 'meta');
+      meta.appendChild(el('span', 'pf ' + c.platform, PLATFORM[c.platform] || c.platform));
+      meta.appendChild(el('span', 'brand', c.brand));
+      if (d && d.status === 'failed') meta.appendChild(el('span', 'flag', '送出失敗'));
+      else if (d && d.status === 'pending' && d.needs_human) meta.appendChild(el('span', 'flag', '需人工確認'));
+      else if (d && d.status === 'pending') meta.appendChild(el('span', 'brand', '草稿已備'));
+      if (c.unread_count > 0) meta.appendChild(el('span', 'unread', String(c.unread_count)));
+      b.appendChild(meta);
+      b.addEventListener('click', () => openConv(c));
+      list.appendChild(b);
+    });
+  }
+
+  // ---------- 對話 ----------
+  async function openConv(c){
+    current = c; loadedDraftId = null; dirty = false;
+    $('app').classList.add('chat');
+    show($('nochat'), false); show($('chat'), true);
+    renderList();
+    await renderChat(true);
+    if (c.unread_count > 0) sb.rpc('cs_mark_read', { p_conversation_id: c.id }).then(scheduleRefresh);
+  }
+  $('back').addEventListener('click', () => { $('app').classList.remove('chat'); current = null; renderList(); });
+
+  async function renderChat(scroll){
+    const c = current; if (!c) return;
+    $('whoName').textContent = c.display_name || '（未取得名稱）';
+    $('whoMeta').textContent = (PLATFORM[c.platform] || c.platform) + '・' + c.brand;
+    $('closeBtn').textContent = c.status === 'open' ? '結案' : '重新開啟';
+
+    const { data: msgs, error } = await sb.from('cs_messages').select('*').eq('conversation_id', c.id)
+      .order('sent_at', { ascending:false }).limit(100);
+    if (!current || current.id !== c.id) return;
+    const box = $('msgs');
+    const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+    box.innerHTML = '';
+    if (error) box.appendChild(emptyEl('讀取失敗：' + error.message));
+    (msgs || []).slice().reverse().forEach(m => {
+      const e = el('div', 'msg ' + m.direction, m.text || '');
+      e.appendChild(el('small', null, fmtTime(m.sent_at, true) + (m.direction === 'out' && m.sent_by ? '・' + m.sent_by : '')));
+      box.appendChild(e);
+    });
+    if (scroll || nearBottom) box.scrollTop = box.scrollHeight;
+    renderComposer();
+  }
+
+  function renderComposer(){
+    const d = drafts[current.id] || null;
+    currentDraft = d;
+    const busy = d && (d.status === 'approved' || d.status === 'sending');
+    const ta = $('reply');
+
+    // 只有「換了一份新草稿」才覆蓋輸入框，避免你打到一半被洗掉
+    const draftKey = d ? d.id + ':' + d.status : 'none';
+    if (draftKey !== loadedDraftId) {
+      if (!dirty || !ta.value.trim()) {
+        ta.value = d ? (d.status === 'pending' ? (d.ai_text || '') : (d.final_text || d.ai_text || '')) : '';
+        dirty = false;
+      }
+      loadedDraftId = draftKey;
+    }
+
+    $('draftTitle').textContent = d && d.status === 'pending' ? (d.ai_text ? 'AI 草稿（維奇）' : '需要人工回覆')
+      : d && d.status === 'failed' ? '上次送出失敗' : busy ? '傳送中…' : '手動回覆';
+
+    const note = $('note');
+    show(note, !!(d && d.status === 'pending' && (d.note || d.needs_human)));
+    if (d) { note.textContent = (d.needs_human ? '⚠ 需人工確認　' : '') + (d.note || ''); note.classList.toggle('plain', !d.needs_human); }
+
+    const st = $('state');
+    show(st, !!(d && (d.status === 'failed' || busy)));
+    if (d && d.status === 'failed') { st.className = 'bad'; st.textContent = '送出失敗：' + (d.error || '未知原因') + '　可修改後再按送出重試。'; }
+    else if (busy) {
+      const mins = (Date.now() - new Date(d.approved_at).getTime()) / 60000;
+      st.className = 'wait';
+      st.textContent = mins > 2 ? '已超過 2 分鐘還沒有送出結果。請到 n8n 的 Executions 檢查「客服-送出回覆」，並先到 LINE 後台確認客人是否已收到，再決定要不要重打一則。' : '已按送出，等待 n8n 回報結果…';
+    }
+
+    ta.disabled = !!busy && (Date.now() - new Date(d.approved_at).getTime()) < 120000;
+    $('send').disabled = ta.disabled;
+    show($('discard'), !!(d && (d.status === 'pending' || d.status === 'failed')));
+    show($('edited'), !!(d && d.status === 'pending' && dirty));
+    renderWindow();
+  }
+
+  function renderWindow(){
+    const w = $('window'); if (!current) return;
+    if (current.platform === 'line' || !current.last_inbound_at) { w.textContent = ''; w.className = ''; return; }
+    const left = 24 * 3600e3 - (Date.now() - new Date(current.last_inbound_at).getTime());
+    if (left <= 0) { w.textContent = '已超過 24 小時回覆期限'; w.className = 'bad'; }
+    else { const h = Math.floor(left / 3600e3), m = Math.floor(left % 3600e3 / 60000); w.textContent = `回覆期限剩 ${h} 小時 ${m} 分`; w.className = left < 3 * 3600e3 ? 'bad' : ''; }
+  }
+
+  $('reply').addEventListener('input', () => { dirty = true; show($('edited'), !!(currentDraft && currentDraft.status === 'pending')); });
+
+  $('send').addEventListener('click', async () => {
+    const text = $('reply').value.trim();
+    if (!text || !current) return;
+    $('send').disabled = true;
+    const d = currentDraft;
+    const res = (d && (d.status === 'pending' || d.status === 'failed'))
+      ? await sb.rpc('cs_approve_draft', { p_draft_id: d.id, p_final_text: text })
+      : await sb.rpc('cs_send_manual', { p_conversation_id: current.id, p_text: text });
+    if (res.error) {
+      $('send').disabled = false;
+      const st = $('state'); show(st, true); st.className = 'bad'; st.textContent = '無法送出：' + res.error.message;
+      return;
+    }
+    dirty = false; $('reply').value = ''; loadedDraftId = null;
+    await refresh();
+  });
+
+  $('discard').addEventListener('click', async () => {
+    if (!currentDraft) return;
+    await sb.rpc('cs_discard_draft', { p_draft_id: currentDraft.id });
+    dirty = false; $('reply').value = ''; loadedDraftId = null;
+    await refresh();
+  });
+
+  $('closeBtn').addEventListener('click', async () => {
+    if (!current) return;
+    await sb.rpc('cs_set_status', { p_conversation_id: current.id, p_status: current.status === 'open' ? 'closed' : 'open' });
+    await refresh();
+  });
+
+  function fmtTime(iso, full){
+    if (!iso) return '';
+    const d = new Date(iso), now = new Date();
+    const hm = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    const sameDay = d.toDateString() === now.toDateString();
+    if (sameDay && !full) return hm;
+    const md = (d.getMonth()+1) + '/' + d.getDate();
+    return sameDay ? hm : (full ? md + ' ' + hm : md);
+  }
+})();
+</script>
+</body>
+</html>
