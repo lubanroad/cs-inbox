@@ -163,6 +163,29 @@ const BRAND_STYLE = {
   .hint{font-size:12px;color:var(--warn);font-weight:700}
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:9px 18px;border-radius:999px;font-size:13px;font-weight:700;border:2px solid #fff;box-shadow:var(--shadow);z-index:9;opacity:0;transition:opacity .2s;pointer-events:none}
   .toast.show{opacity:1}
+  .modal-bg{position:fixed;inset:0;background:rgba(20,20,20,.45);display:grid;place-items:center;z-index:20;padding:16px}
+  .modal{width:100%;max-width:460px;background:var(--panel);border:2px solid var(--line);border-radius:18px;box-shadow:6px 6px 0 var(--ink);padding:20px}
+  .modal h2{margin:0 0 4px;font-size:18px;font-weight:900}
+  .modal p{margin:0 0 12px;color:var(--muted);font-size:13px}
+  .modal .row{display:flex;gap:8px;margin-top:8px}
+  .modal .row input{flex:1}
+  .staff{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line-soft)}
+  .staff .av{width:30px;height:30px;border-radius:50%;background:var(--yellow);border:2px solid var(--ink);display:grid;place-items:center;font-weight:900;font-size:13px}
+  .staff .nm{font-weight:800}
+  .staff .em{font-size:12px;color:var(--muted)}
+  .staff .sp{flex:1}
+  .staff button{padding:4px 10px;font-size:12px}
+  .linkish{background:none;border:0;box-shadow:none;color:var(--accent);font-weight:700;padding:0;font-size:13px;text-decoration:underline}
+  .linkish:hover{background:none}
+  .linkish:active{transform:none}
+  .brandbar .who{cursor:pointer;text-decoration:underline dotted}
+  .msg img.att{display:block;max-width:100%;max-height:320px;border-radius:10px;border:2px solid var(--ink);margin-bottom:6px;cursor:zoom-in;background:#fff}
+  .msg a.att{display:inline-flex;align-items:center;gap:6px;background:#fff;color:var(--ink);border:2px solid var(--ink);border-radius:10px;padding:6px 10px;font-weight:800;text-decoration:none;margin-bottom:6px;font-size:13px}
+  .msg.out.staff a.att{color:var(--ink)}
+  #attBar{display:flex;align-items:center;gap:8px;margin-bottom:8px;background:var(--panel2);border:2px dashed var(--line);border-radius:12px;padding:6px 10px;font-size:13px}
+  #attBar img{width:44px;height:44px;object-fit:cover;border-radius:8px;border:2px solid var(--ink)}
+  #attBar .nm{flex:1;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #attBar .sz{color:var(--muted);font-size:12px}
   .delnote{background:var(--bad-bg);color:var(--bad);font-size:13px;font-weight:700;padding:8px 16px;border-bottom:2px solid var(--line)}
 
   @media (max-width:800px){
@@ -200,6 +223,7 @@ const BRAND_STYLE = {
     <input id="pw" type="password" autocomplete="current-password" required>
     <button class="primary" id="loginBtn">登入</button>
     <div class="err" id="loginErr"></div>
+    <p style="margin:14px 0 0;text-align:center">新客服人員？負責人加入名單後，<button type="button" class="linkish" id="signupBtn">用這個 Email 註冊</button></p>
   </form>
 </div>
 
@@ -208,7 +232,8 @@ const BRAND_STYLE = {
     <header>
       <div class="brandbar">
         <h1><span class="dot"></span>客服收件匣</h1>
-        <span class="who" id="staffEmail"></span>
+        <span class="who" id="staffEmail" title="點一下改顯示名稱"></span>
+        <button id="teamBtn" class="hidden">團隊</button>
         <button id="logout">登出</button>
       </div>
       <div class="search">
@@ -258,8 +283,11 @@ const BRAND_STYLE = {
         <div id="draftlabel"><span id="draftTitle"></span></div>
         <div id="note" class="hidden"></div>
         <div id="state" class="hidden"></div>
+        <div id="attBar" class="hidden"><img id="attImg" alt="" class="hidden"><span id="attIcon" class="hidden">📎</span><span class="nm" id="attName"></span><span class="sz" id="attSize"></span><button id="attRemove" class="icon" title="移除附件">×</button></div>
         <textarea id="reply" placeholder="輸入回覆…（Ctrl/⌘ + Enter 送出）"></textarea>
+        <input type="file" id="attInput" class="hidden" accept="image/jpeg,image/png,image/gif,image/webp,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx">
         <div class="actions">
+          <button id="attBtn" title="附加圖片或文件">📎 附件</button>
           <button id="discard" class="hidden">不採用草稿</button>
           <span class="hint hidden" id="edited">已修改</span>
           <span class="spacer"></span>
@@ -270,6 +298,16 @@ const BRAND_STYLE = {
   </section>
 </div>
 <div class="toast" id="toast"></div>
+<div id="teamModal" class="modal-bg hidden">
+  <div class="modal">
+    <h2>團隊成員</h2>
+    <p>名單內的 Email 才能登入後台。新增後請對方到登入頁用該 Email「註冊」設定密碼。</p>
+    <div id="staffList"></div>
+    <div class="row"><input id="newStaffEmail" placeholder="email" type="email"><input id="newStaffName" placeholder="顯示名稱" maxlength="30" style="max-width:140px"><button id="addStaff" class="primary">新增</button></div>
+    <div class="err" id="teamErr"></div>
+    <div class="row" style="justify-content:flex-end"><button id="teamClose">關閉</button></div>
+  </div>
+</div>
 
 <script>
 (function(){
@@ -283,7 +321,8 @@ const BRAND_STYLE = {
   const PF_SHORT = { line:'L', facebook:'f', instagram:'IG', threads:'@' };
 
   let sb = null, tab = 'todo', convs = [], drafts = {}, tagDict = [], current = null, currentDraft = null;
-  let loadedDraftId = null, dirty = false, refreshTimer = null, filterTag = '', q = '', staffEmail = '';
+  let loadedDraftId = null, dirty = false, refreshTimer = null, filterTag = '', q = '', staffEmail = '', staff = [], me = null;
+  const staffName = email => { const x = staff.find(s => s.email && email && s.email.toLowerCase() === String(email).toLowerCase()); return (x && x.name) || email || '客服'; };
 
   // ---------- 啟動 ----------
   const url = SUPABASE_URL || store.get('cs_url');
@@ -316,6 +355,16 @@ const BRAND_STYLE = {
     enter();
   });
   $('logout').addEventListener('click', async () => { await sb.auth.signOut(); location.reload(); });
+  $('signupBtn').addEventListener('click', async () => {
+    const email = $('email').value.trim(), pw = $('pw').value;
+    $('loginErr').textContent = '';
+    if (!email || pw.length < 8) { $('loginErr').textContent = '請先在上方填 Email 與至少 8 碼的密碼，再按註冊。'; return; }
+    const { data, error } = await sb.auth.signUp({ email, password: pw });
+    if (error) { $('loginErr').textContent = '註冊失敗：' + error.message; return; }
+    if (data.session) { enter(); return; }
+    $('loginErr').style.color = 'var(--ok)';
+    $('loginErr').textContent = '已送出註冊。若有收到確認信請先點信中連結，再回來登入。';
+  });
 
   async function enter(){
     const { data: ok, error } = await sb.rpc('cs_is_staff');
@@ -326,7 +375,7 @@ const BRAND_STYLE = {
     }
     const { data: u } = await sb.auth.getUser();
     staffEmail = (u && u.user && u.user.email) || '';
-    $('staffEmail').textContent = staffEmail;
+    await loadStaff();
     show($('login'), false); show($('app'), true);
     await refresh();
     sb.channel('cs-inbox')
@@ -339,6 +388,56 @@ const BRAND_STYLE = {
     setInterval(renderWindow, 60000);
   }
   function scheduleRefresh(){ clearTimeout(refreshTimer); refreshTimer = setTimeout(refresh, 250); }
+
+  // ---------- 團隊 / 名稱 ----------
+  async function loadStaff(){
+    const { data } = await sb.from('cs_staff').select('email,name,role').order('role').order('email');
+    staff = data || [];
+    me = staff.find(s => s.email.toLowerCase() === staffEmail.toLowerCase()) || null;
+    $('staffEmail').textContent = (me && me.name) ? me.name : staffEmail;
+    show($('teamBtn'), !!(me && me.role === 'owner'));
+    renderStaffList();
+  }
+  $('staffEmail').addEventListener('click', async () => {
+    const cur = (me && me.name) || '';
+    const name = prompt('你的顯示名稱（客人看不到，只用於後台與紀錄）', cur);
+    if (name == null) return;
+    const r = await sb.rpc('cs_set_my_name', { p_name: name.trim() });
+    if (r.error) { toast('更新失敗：' + r.error.message); return; }
+    toast('名稱已更新'); await loadStaff(); if (current) renderChat(false);
+  });
+  function renderStaffList(){
+    const box = $('staffList'); if (!box) return; box.innerHTML = '';
+    staff.forEach(s => {
+      const row = el('div', 'staff');
+      row.appendChild(el('div', 'av', (s.name || s.email).slice(0,1).toUpperCase()));
+      const info = el('div'); info.appendChild(el('div', 'nm', (s.name || '（未設定名稱）') + (s.role === 'owner' ? '　負責人' : ''))); info.appendChild(el('div', 'em', s.email));
+      row.appendChild(info); row.appendChild(el('span', 'sp'));
+      if (me && me.role === 'owner' && s.role !== 'owner') {
+        const rm = el('button', 'danger', '移除');
+        rm.addEventListener('click', async () => {
+          if (!confirm('移除 ' + s.email + '？對方將無法再登入後台。')) return;
+          const r = await sb.rpc('cs_remove_staff', { p_email: s.email });
+          if (r.error) { $('teamErr').textContent = r.error.message; return; }
+          await loadStaff();
+        });
+        row.appendChild(rm);
+      }
+      box.appendChild(row);
+    });
+  }
+  $('teamBtn').addEventListener('click', () => { $('teamErr').textContent = ''; renderStaffList(); show($('teamModal'), true); });
+  $('teamClose').addEventListener('click', () => show($('teamModal'), false));
+  $('teamModal').addEventListener('click', e => { if (e.target === $('teamModal')) show($('teamModal'), false); });
+  $('addStaff').addEventListener('click', async () => {
+    const email = $('newStaffEmail').value.trim(), name = $('newStaffName').value.trim();
+    $('teamErr').textContent = '';
+    if (!email) { $('teamErr').textContent = '請填 Email'; return; }
+    const r = await sb.rpc('cs_add_staff', { p_email: email, p_name: name });
+    if (r.error) { $('teamErr').textContent = '新增失敗：' + r.error.message; return; }
+    $('newStaffEmail').value = ''; $('newStaffName').value = '';
+    toast('已加入名單，請對方到登入頁用此 Email 註冊'); await loadStaff();
+  });
 
   // ---------- 資料 ----------
   async function refresh(){
@@ -383,7 +482,7 @@ const BRAND_STYLE = {
     return a;
   }
   const initial = c => (c.display_name || '客').trim().slice(0, 1).toUpperCase();
-  function brandPill(b){ const s = brandStyle(b); const e = el('span', 'bpill', b); e.style.background = s.bg; e.style.color = s.fg; return e; }
+  function brandPill(b, pf){ const s = brandStyle(b); const e = el('span', 'bpill', b + (pf ? '・' + (PLATFORM[pf] || pf) : '')); e.style.background = s.bg; e.style.color = s.fg; return e; }
   function tagChip(name, small, onRemove){
     const e = el('span', 'chip tag' + (small ? ' small' : '')); e.style.background = tagColor(name);
     e.appendChild(el('span', null, name));
@@ -437,7 +536,7 @@ const BRAND_STYLE = {
       if (c.unread_count > 0 && !isDeleted(c)) r2.appendChild(el('span', 'unread', String(c.unread_count)));
       body.appendChild(r2);
       const r3 = el('div', 'row3');
-      r3.appendChild(brandPill(c.brand));
+      r3.appendChild(brandPill(c.brand, c.platform));
       if (d && d.status === 'failed') r3.appendChild(el('span', 'flag bad', '送出失敗'));
       else if (d && d.status === 'pending' && d.needs_human) r3.appendChild(el('span', 'flag', '需人工確認'));
       else if (d && d.status === 'pending') r3.appendChild(el('span', 'flag ok', '草稿已備'));
@@ -452,7 +551,7 @@ const BRAND_STYLE = {
 
   // ---------- 對話 ----------
   async function openConv(c){
-    current = c; loadedDraftId = null; dirty = false; show($('tagpick'), false);
+    current = c; loadedDraftId = null; dirty = false; show($('tagpick'), false); attFile = null; renderAtt();
     $('app').classList.add('chat');
     show($('nochat'), false); show($('chat'), true);
     renderList();
@@ -465,8 +564,8 @@ const BRAND_STYLE = {
     const c = current; if (!c) return;
     const hA = $('hAvatar'); hA.replaceWith(avatarEl(c)); document.querySelector('#mainhead .avatar').id = 'hAvatar';
     $('whoName').textContent = c.display_name || '（未取得名稱）';
-    const bp = $('whoBrand'); const s = brandStyle(c.brand); bp.textContent = c.brand; bp.style.background = s.bg; bp.style.color = s.fg;
-    $('whoPf').textContent = PLATFORM[c.platform] || c.platform;
+    const bp = $('whoBrand'); const s = brandStyle(c.brand); bp.textContent = c.brand + '・' + (PLATFORM[c.platform] || c.platform); bp.style.background = s.bg; bp.style.color = s.fg;
+    $('whoPf').textContent = c.external_user_id ? 'ID ' + String(c.external_user_id).slice(-6) : '';
     const del = isDeleted(c);
     show($('delnote'), del);
     $('doneBtn').textContent = c.status === 'open' ? '✓ 標記完成' : '↺ 重新開啟';
@@ -489,9 +588,11 @@ const BRAND_STYLE = {
       const day = new Date(m.sent_at).toDateString();
       if (day !== lastDay) { box.appendChild(el('div', 'day', fmtDay(m.sent_at))); lastDay = day; }
       const kind = m.direction === 'out' ? (m.sent_by === 'vicky-ai' ? 'ai' : m.sent_by === 'meta-auto' ? 'auto' : 'staff') : '';
-      const e = el('div', 'msg ' + m.direction + (kind ? ' ' + kind : ''), m.text || '');
+      const e = el('div', 'msg ' + m.direction + (kind ? ' ' + kind : ''));
+      const att = attEl(m); if (att) e.appendChild(att);
+      if (m.text) e.appendChild(document.createTextNode(m.text));
       const sm = el('small');
-      if (m.direction === 'out') sm.appendChild(el('span', 'by', kind === 'ai' ? '維奇 AI' : kind === 'auto' ? 'Meta 罐頭回覆' : (m.sent_by || '客服')));
+      if (m.direction === 'out') sm.appendChild(el('span', 'by', kind === 'ai' ? '維奇 AI' : kind === 'auto' ? 'Meta 罐頭回覆' : staffName(m.sent_by)));
       sm.appendChild(el('span', null, fmtTime(m.sent_at, true)));
       e.appendChild(sm);
       box.appendChild(e);
@@ -583,6 +684,44 @@ const BRAND_STYLE = {
     await refresh();
   });
 
+  // ---------- 附件 ----------
+  let attFile = null;
+  const IMG_TYPES = ['image/jpeg','image/png','image/gif','image/webp'];
+  $('attBtn').addEventListener('click', () => $('attInput').click());
+  $('attInput').addEventListener('change', () => {
+    const f = $('attInput').files[0]; $('attInput').value = '';
+    if (!f) return;
+    const isImg = IMG_TYPES.includes(f.type);
+    if (isImg && f.size > 10 * 1024 * 1024) { toast('圖片請小於 10 MB（LINE 限制）'); return; }
+    if (!isImg && f.size > 25 * 1024 * 1024) { toast('檔案請小於 25 MB'); return; }
+    if (isImg && current && current.platform === 'line' && !['image/jpeg','image/png'].includes(f.type)) { toast('LINE 只接受 JPG／PNG 圖片'); return; }
+    attFile = f; renderAtt();
+  });
+  $('attRemove').addEventListener('click', () => { attFile = null; renderAtt(); });
+  function renderAtt(){
+    const bar = $('attBar'); show(bar, !!attFile);
+    if (!attFile) { $('attImg').src = ''; return; }
+    const isImg = IMG_TYPES.includes(attFile.type);
+    show($('attImg'), isImg); show($('attIcon'), !isImg);
+    if (isImg) $('attImg').src = URL.createObjectURL(attFile);
+    $('attName').textContent = attFile.name;
+    $('attSize').textContent = (attFile.size / 1024 / 1024).toFixed(attFile.size > 1048576 ? 1 : 2) + ' MB';
+  }
+  async function uploadAtt(){
+    if (!attFile) return null;
+    const ext = (attFile.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const path = `${current.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const { error } = await sb.storage.from('cs-attachments').upload(path, attFile, { contentType: attFile.type || 'application/octet-stream', upsert: false });
+    if (error) throw new Error('上傳失敗：' + error.message);
+    const { data } = sb.storage.from('cs-attachments').getPublicUrl(path);
+    return { url: data.publicUrl, type: IMG_TYPES.includes(attFile.type) ? 'image' : 'file', name: attFile.name };
+  }
+  function attEl(m){
+    if (!m.attachment_url) return null;
+    if (m.attachment_type === 'image') { const img = document.createElement('img'); img.className = 'att'; img.src = m.attachment_url; img.alt = m.attachment_name || '圖片'; img.loading = 'lazy'; img.addEventListener('click', () => window.open(m.attachment_url, '_blank')); return img; }
+    const a = document.createElement('a'); a.className = 'att'; a.href = m.attachment_url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = '📎 ' + (m.attachment_name || '附件'); return a;
+  }
+
   // ---------- 回覆 ----------
   function renderComposer(){
     const d = drafts[current.id] || null;
@@ -630,18 +769,22 @@ const BRAND_STYLE = {
 
   $('send').addEventListener('click', async () => {
     const text = $('reply').value.trim();
-    if (!text || !current) return;
+    if ((!text && !attFile) || !current) return;
     $('send').disabled = true;
+    let att = null;
+    try { att = await uploadAtt(); }
+    catch (e) { $('send').disabled = false; const st = $('state'); show(st, true); st.className = 'bad'; st.textContent = e.message; return; }
+    const extra = att ? { p_attachment_url: att.url, p_attachment_type: att.type, p_attachment_name: att.name } : {};
     const d = currentDraft;
     const res = (d && (d.status === 'pending' || d.status === 'failed'))
-      ? await sb.rpc('cs_approve_draft', { p_draft_id: d.id, p_final_text: text })
-      : await sb.rpc('cs_send_manual', { p_conversation_id: current.id, p_text: text });
+      ? await sb.rpc('cs_approve_draft', Object.assign({ p_draft_id: d.id, p_final_text: text }, extra))
+      : await sb.rpc('cs_send_manual', Object.assign({ p_conversation_id: current.id, p_text: text }, extra));
     if (res.error) {
       $('send').disabled = false;
       const st = $('state'); show(st, true); st.className = 'bad'; st.textContent = '無法送出：' + res.error.message;
       return;
     }
-    dirty = false; $('reply').value = ''; loadedDraftId = null;
+    dirty = false; $('reply').value = ''; loadedDraftId = null; attFile = null; renderAtt();
     await refresh();
   });
 
