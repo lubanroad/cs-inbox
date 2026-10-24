@@ -7,107 +7,180 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* ===================== 設定區 =====================
-   兩個都可以留空：留空的話第一次開啟會跳出表單讓你填，並記在這台裝置的瀏覽器裡。
-   anon key 是 Supabase 設計上可公開的那把（資料靠登入＋白名單保護），
-   但「service_role key」絕對不可以填在這個檔案裡。 */
+   anon / publishable key 是 Supabase 設計上可公開的那把（資料靠登入＋白名單保護），
+   「service_role / sb_secret」絕對不可以填在這裡。留空會在第一次開啟時跳表單。 */
 const SUPABASE_URL = 'https://uorcogyoadkdogsodvnh.supabase.co';
 const SUPABASE_ANON_KEY = '';
+/* 品牌顏色（卡片／標題用） */
+const BRAND_STYLE = {
+  '知己知米': { bg:'#1f1d1a', fg:'#e6c35c' },
+  '李鴻記':   { bg:'#7a2e1f', fg:'#ffe8d6' },
+  '阿福號':   { bg:'#0f766e', fg:'#ecfeff' },
+};
 /* ================================================== */
 </script>
 <style>
+  /* RE-THINK 風：鮮藍主色、米白紙底、粗黑描邊、圓胖按鍵、糖果色標籤 */
   :root{
-    --bg:#f6f5f2; --panel:#ffffff; --line:#e4e1da; --text:#1f1d1a; --muted:#77726a;
-    --accent:#5b3fd1; --accent-ink:#ffffff; --in:#efede8; --out:#e6e0fb;
-    --warn:#b45309; --warn-bg:#fdf3e1; --bad:#b42318; --bad-bg:#fdecea; --ok:#15803d;
-    --line-c:#06c755; --fb-c:#1877f2; --ig-c:#d6336c; --th-c:#444;
+    --bg:#f3eee2; --panel:#ffffff; --panel2:#faf6ec; --ink:#141414; --line:#141414; --line-soft:#d9d2c3;
+    --text:#141414; --muted:#5f5a52;
+    --accent:#1a6fe0; --accent-ink:#ffffff; --accent-soft:#dbe9ff;
+    --yellow:#ffd93d; --pink:#ff7bb0; --green:#9be15d;
+    --in:#ffffff; --out:#dbe9ff; --ai:#e7f0ff; --auto:#f5f0e3;
+    --warn:#8a4b00; --warn-bg:#ffe9a8; --bad:#c2271d; --bad-bg:#ffd9d4; --ok:#1d6b2a; --ok-bg:#dff5c7;
+    --line-c:#06c755; --fb-c:#1877f2; --ig-c:#e1306c; --th-c:#141414;
+    --shadow:3px 3px 0 var(--ink); --shadow-s:2px 2px 0 var(--ink);
+    --r:14px;
   }
   @media (prefers-color-scheme: dark){
-    :root{ --bg:#16151a; --panel:#1f1e25; --line:#33313b; --text:#ece9f5; --muted:#9a96a6;
-      --accent:#9d87ff; --accent-ink:#16151a; --in:#2a2932; --out:#342d5c;
-      --warn:#fbbf24; --warn-bg:#3a2e12; --bad:#f87171; --bad-bg:#3d1d1d; --ok:#4ade80; }
+    :root{ --bg:#17191f; --panel:#22252d; --panel2:#2a2d36; --ink:#0b0c10; --line:#3a3e4a; --line-soft:#3a3e4a;
+      --text:#f1efe8; --muted:#a7a39a; --accent:#4d8dff; --accent-soft:#223a63;
+      --in:#262932; --out:#2a3a5c; --ai:#263450; --auto:#2b2a26;
+      --warn:#ffd36b; --warn-bg:#4a3a10; --bad:#ff8a80; --bad-bg:#4a1f1b; --ok:#8be28a; --ok-bg:#1f3a22;
+      --shadow:3px 3px 0 var(--ink); --shadow-s:2px 2px 0 var(--ink); }
   }
   *{box-sizing:border-box}
   html,body{height:100%;margin:0}
-  body{background:var(--bg);color:var(--text);font:15px/1.55 -apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif}
+  body{background:var(--bg);color:var(--text);font:15px/1.55 -apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;-webkit-font-smoothing:antialiased;
+    background-image:radial-gradient(var(--line-soft) 1px, transparent 1px);background-size:18px 18px}
   button,input,textarea{font:inherit;color:inherit}
-  button{cursor:pointer;border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:8px 14px}
-  button.primary{background:var(--accent);color:var(--accent-ink);border-color:transparent;font-weight:600}
-  button:disabled{opacity:.5;cursor:not-allowed}
-  input,textarea{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
-  textarea{resize:vertical;min-height:96px}
+  button{cursor:pointer;border:2px solid var(--line);background:var(--panel);border-radius:999px;padding:8px 16px;font-weight:700;box-shadow:var(--shadow-s);transition:transform .06s,box-shadow .06s,background .12s}
+  button:hover{background:var(--panel2)}
+  button:active{transform:translate(2px,2px);box-shadow:0 0 0 var(--ink)}
+  button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--line)}
+  button.primary:hover{filter:brightness(1.06);background:var(--accent)}
+  button.danger{background:var(--bad-bg);color:var(--bad)}
+  button.ok{background:var(--ok-bg);color:var(--ok)}
+  button.icon{padding:8px 12px;line-height:1}
+  button:disabled{opacity:.45;cursor:not-allowed;transform:none}
+  input,textarea{width:100%;background:var(--panel);border:2px solid var(--line);border-radius:12px;padding:10px 12px;outline:none}
+  input:focus,textarea:focus{box-shadow:0 0 0 3px var(--accent-soft)}
+  textarea{resize:vertical;min-height:92px}
   .hidden{display:none !important}
+  b{font-weight:800}
 
   /* 登入 / 設定 */
   .center{min-height:100%;display:grid;place-items:center;padding:16px}
-  .card{width:100%;max-width:380px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px}
-  .card h1{font-size:20px;margin:0 0 4px}
+  .card{width:100%;max-width:400px;background:var(--panel);border:2px solid var(--line);border-radius:22px;padding:30px;box-shadow:6px 6px 0 var(--ink)}
+  .card h1{font-size:26px;margin:0 0 4px;letter-spacing:.02em;font-weight:900}
+  .card h1::before{content:"";display:inline-block;width:14px;height:14px;border-radius:50%;background:var(--accent);border:2px solid var(--line);margin-right:10px;vertical-align:middle}
   .card p{color:var(--muted);margin:0 0 16px;font-size:13px}
-  .card label{display:block;font-size:13px;color:var(--muted);margin:12px 0 4px}
-  .card button{width:100%;margin-top:16px}
-  .err{color:var(--bad);font-size:13px;margin-top:10px;min-height:1.2em}
+  .card label{display:block;font-size:13px;color:var(--muted);margin:12px 0 4px;font-weight:700}
+  .card button{width:100%;margin-top:18px;padding:12px;font-size:16px;box-shadow:var(--shadow)}
+  .err{color:var(--bad);font-size:13px;margin-top:10px;min-height:1.2em;font-weight:700}
 
   /* 主畫面 */
-  #app{height:100%;display:grid;grid-template-columns:340px 1fr}
-  #side{border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;background:var(--panel)}
-  #side header{padding:14px 16px 10px;border-bottom:1px solid var(--line)}
-  #side h1{font-size:16px;margin:0;display:flex;justify-content:space-between;align-items:center}
-  #side h1 button{font-size:12px;padding:4px 10px}
-  .tabs{display:flex;gap:6px;margin-top:10px}
-  .tabs button{flex:1;padding:6px 0;font-size:13px}
-  .tabs button.on{background:var(--accent);color:var(--accent-ink);border-color:transparent}
-  #list{overflow-y:auto;flex:1}
-  .conv{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:12px 16px;background:transparent}
-  .conv.on{background:var(--in)}
-  .conv .top{display:flex;gap:8px;align-items:center}
-  .conv .name{font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .conv .time{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
-  .conv .last{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px}
-  .conv .meta{display:flex;gap:6px;align-items:center;margin-top:6px;font-size:12px}
-  .pf{color:#fff;border-radius:4px;padding:0 6px;font-size:11px;font-weight:600}
+  #app{height:100%;display:grid;grid-template-columns:390px 1fr}
+  #side{border-right:2px solid var(--line);display:flex;flex-direction:column;min-height:0;background:var(--panel)}
+  #side header{padding:14px 16px 12px;border-bottom:2px solid var(--line);background:var(--accent);color:#fff}
+  .brandbar{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .brandbar h1{font-size:20px;margin:0;letter-spacing:.04em;display:flex;align-items:center;gap:10px;font-weight:900;color:#fff;text-shadow:2px 2px 0 var(--ink)}
+  .brandbar h1 .dot{width:14px;height:14px;border-radius:50%;background:var(--yellow);border:2px solid var(--ink)}
+  .brandbar .who{font-size:12px;color:#e6f0ff;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .brandbar button{font-size:12px;padding:5px 12px;color:var(--ink);background:#fff}
+  .search{position:relative;margin-top:12px}
+  .search input{padding-left:36px;background:var(--panel)}
+  .search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--muted)}
+  .seg{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:10px;background:var(--panel);border:2px solid var(--line);border-radius:999px;padding:4px}
+  .seg button{border:0;background:transparent;padding:7px 0;font-size:13px;border-radius:999px;color:var(--muted);position:relative;box-shadow:none;font-weight:700}
+  .seg button:active{transform:none}
+  .seg button.on{background:var(--ink);color:#fff}
+  .seg button .n{position:absolute;top:-6px;right:4px;font-size:10px;background:var(--pink);color:var(--ink);border:2px solid var(--ink);border-radius:999px;padding:0 5px;line-height:14px;font-weight:900}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .chip{font-size:12px;border-radius:999px;padding:3px 10px;border:2px solid var(--line);background:var(--panel);color:var(--text);line-height:1.5;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-weight:700}
+  .chip .sw{width:9px;height:9px;border-radius:50%;display:inline-block;border:1.5px solid var(--ink)}
+  .chip.on{background:var(--ink);color:#fff}
+  #side header .chip{border-color:#fff;color:#fff;background:transparent}
+  #side header .chip.on{background:#fff;color:var(--ink)}
+  .chip.tag{cursor:default;color:#fff;border-color:var(--line);font-weight:800;padding:2px 10px;text-shadow:0 1px 0 rgba(0,0,0,.25)}
+  .chip.tag.small{font-size:11px;padding:1px 8px}
+  .chip.tag .x{cursor:pointer;opacity:.8;margin-left:2px}
+  .chip.tag .x:hover{opacity:1}
+  .chip.add{border-style:dashed}
+  #list{overflow-y:auto;flex:1;padding:8px;background:var(--panel2)}
+  .conv{display:grid;grid-template-columns:46px 1fr;gap:10px;width:100%;text-align:left;border:2px solid transparent;border-radius:var(--r);padding:10px;background:transparent;margin-bottom:6px;box-shadow:none}
+  .conv:hover{background:var(--panel);border-color:var(--line)}
+  .conv:active{transform:none}
+  .conv.on{background:var(--panel);border-color:var(--line);box-shadow:var(--shadow)}
+  .avatar{width:46px;height:46px;border-radius:50%;background:var(--yellow);border:2px solid var(--line);display:grid;place-items:center;font-weight:900;font-size:17px;color:var(--ink);overflow:hidden;position:relative;flex:none}
+  .avatar img{width:100%;height:100%;object-fit:cover}
+  .avatar .pf{position:absolute;right:-3px;bottom:-3px;width:19px;height:19px;border-radius:50%;border:2px solid var(--ink);display:grid;place-items:center;font-size:9px;color:#fff;font-weight:900;padding:0}
   .pf.line{background:var(--line-c)} .pf.facebook{background:var(--fb-c)} .pf.instagram{background:var(--ig-c)} .pf.threads{background:var(--th-c)}
-  .brand{color:var(--muted)}
-  .unread{margin-left:auto;background:var(--bad);color:#fff;border-radius:10px;padding:0 7px;font-weight:600}
-  .flag{color:var(--warn);background:var(--warn-bg);border-radius:4px;padding:0 6px}
-  .empty{color:var(--muted);text-align:center;padding:40px 16px;font-size:14px}
+  .conv .body{min-width:0}
+  .conv .row1{display:flex;gap:8px;align-items:baseline}
+  .conv .name{font-weight:800;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px}
+  .conv .time{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;flex:none;font-weight:600}
+  .conv .row2{display:flex;gap:6px;align-items:center;margin-top:2px;min-width:0}
+  .conv .last{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+  .unread{background:var(--pink);color:var(--ink);border:2px solid var(--ink);border-radius:999px;padding:0 7px;font-weight:900;font-size:12px;line-height:17px;flex:none}
+  .conv .row3{display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap}
+  .bpill{font-weight:900;font-size:12px;border-radius:8px;padding:1px 8px;letter-spacing:.04em;border:2px solid var(--ink)}
+  .flag{font-size:11px;color:var(--warn);background:var(--warn-bg);border:1.5px solid var(--ink);border-radius:8px;padding:0 6px;font-weight:800}
+  .flag.bad{color:var(--bad);background:var(--bad-bg)}
+  .flag.ok{color:var(--ok);background:var(--ok-bg)}
+  .empty{color:var(--muted);text-align:center;padding:48px 16px;font-size:14px;font-weight:600}
 
-  #main{display:flex;flex-direction:column;min-height:0;min-width:0}
-  #mainhead{padding:12px 16px;border-bottom:1px solid var(--line);background:var(--panel);display:flex;gap:10px;align-items:center}
-  #mainhead .who{flex:1;min-width:0}
-  #mainhead .who b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  #mainhead .who span{font-size:12px;color:var(--muted)}
+  #main{display:flex;flex-direction:column;min-height:0;min-width:0;position:relative}
+  #mainhead{padding:12px 16px;border-bottom:2px solid var(--line);background:var(--panel);display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  #mainhead .avatar{width:42px;height:42px;font-size:15px}
+  #mainhead .who{flex:1;min-width:160px}
+  #mainhead .who .nm{font-weight:900;font-size:17px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  #mainhead .who .sub{font-size:12px;color:var(--muted);display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:2px;font-weight:600}
+  #mainhead .acts{display:flex;gap:8px;flex-wrap:wrap}
   #back{display:none}
-  #msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px}
-  .msg{max-width:min(78%,560px);padding:8px 12px;border-radius:14px;white-space:pre-wrap;word-break:break-word}
-  .msg.in{align-self:flex-start;background:var(--in);border-bottom-left-radius:4px}
-  .msg.out{align-self:flex-end;background:var(--out);border-bottom-right-radius:4px}
-  .msg small{display:block;font-size:11px;color:var(--muted);margin-top:2px}
-  #composer{border-top:1px solid var(--line);background:var(--panel);padding:12px 16px calc(12px + env(safe-area-inset-bottom))}
-  #draftlabel{font-size:12px;font-weight:600;color:var(--accent);margin-bottom:6px;display:flex;gap:8px;align-items:center}
-  #note{font-size:13px;border-radius:8px;padding:8px 10px;margin-bottom:8px;background:var(--warn-bg);color:var(--warn)}
-  #note.plain{background:var(--in);color:var(--muted)}
-  #state{font-size:13px;margin-bottom:8px;border-radius:8px;padding:8px 10px}
-  #state.bad{background:var(--bad-bg);color:var(--bad)} #state.wait{background:var(--in);color:var(--muted)}
-  #window{font-size:12px;color:var(--muted)}
-  #window.bad{color:var(--bad);font-weight:600}
-  .actions{display:flex;gap:8px;margin-top:8px;align-items:center}
+  #tagsrow{padding:10px 16px;border-bottom:2px solid var(--line);background:var(--panel2);display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap}
+  #tagsrow .lbl{font-size:12px;color:var(--muted);padding-top:4px;flex:none;font-weight:800}
+  #tagsrow .chips{margin:0;flex:1}
+  #noteWrap{flex-basis:100%;display:flex;gap:8px;align-items:center}
+  #noteWrap input{padding:6px 10px;font-size:13px;background:var(--panel)}
+  #noteWrap .lbl{flex:none}
+  #tagpick{position:absolute;z-index:5;background:var(--panel);border:2px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:12px;width:290px}
+  #tagpick .chips{margin:0 0 8px}
+  #tagpick input{font-size:13px;padding:7px 10px}
+  #tagpick .hint{display:block;margin-top:6px}
+  #msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
+  .day{align-self:center;font-size:11px;color:var(--ink);background:var(--yellow);border:2px solid var(--ink);border-radius:999px;padding:1px 10px;margin:4px 0;font-weight:800}
+  .msg{max-width:min(78%,600px);padding:9px 13px;border-radius:18px;white-space:pre-wrap;word-break:break-word;line-height:1.55;border:2px solid var(--line);box-shadow:var(--shadow-s)}
+  .msg.in{align-self:flex-start;background:var(--in);border-bottom-left-radius:6px}
+  .msg.out{align-self:flex-end;background:var(--out);border-bottom-right-radius:6px}
+  .msg.out.ai{background:var(--ai)}
+  .msg.out.auto{background:var(--auto);border-style:dashed;color:var(--muted);font-size:13px;box-shadow:none}
+  .msg.out.staff{background:var(--accent);color:#fff}
+  .msg small{display:flex;gap:6px;font-size:11px;color:var(--muted);margin-top:4px;justify-content:flex-end;align-items:center;font-weight:600}
+  .msg.out.staff small{color:#dbe9ff}
+  .msg small .by{font-weight:900}
+  #composer{border-top:2px solid var(--line);background:var(--panel);padding:12px 16px calc(12px + env(safe-area-inset-bottom))}
+  #draftlabel{font-size:12px;font-weight:800;color:var(--accent);margin-bottom:6px;display:flex;gap:10px;align-items:center}
+  #note{font-size:13px;border-radius:12px;padding:8px 10px;margin-bottom:8px;background:var(--warn-bg);color:var(--warn);border:2px solid var(--ink);font-weight:600}
+  #note.plain{background:var(--panel2);color:var(--muted)}
+  #state{font-size:13px;margin-bottom:8px;border-radius:12px;padding:8px 10px;border:2px solid var(--ink);font-weight:600}
+  #state.bad{background:var(--bad-bg);color:var(--bad)} #state.wait{background:var(--panel2);color:var(--muted)}
+  #window{font-size:12px;color:var(--muted);font-weight:600}
+  #window.bad{color:var(--bad);font-weight:800}
+  .actions{display:flex;gap:8px;margin-top:10px;align-items:center}
   .actions .spacer{flex:1}
-  .hint{font-size:12px;color:var(--warn)}
+  .actions #send{padding:9px 26px;box-shadow:var(--shadow)}
+  .hint{font-size:12px;color:var(--warn);font-weight:700}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:9px 18px;border-radius:999px;font-size:13px;font-weight:700;border:2px solid #fff;box-shadow:var(--shadow);z-index:9;opacity:0;transition:opacity .2s;pointer-events:none}
+  .toast.show{opacity:1}
+  .delnote{background:var(--bad-bg);color:var(--bad);font-size:13px;font-weight:700;padding:8px 16px;border-bottom:2px solid var(--line)}
 
-  @media (max-width:760px){
+  @media (max-width:800px){
     #app{grid-template-columns:1fr}
     #app.chat #side{display:none}
     #app:not(.chat) #main{display:none}
     #back{display:inline-block}
+    .msg{max-width:88%}
+    #mainhead .acts button{padding:7px 12px;font-size:13px}
   }
 </style>
 </head>
 <body>
 
-<!-- 第一次使用：填 Supabase 連線資訊 -->
 <div id="setup" class="center hidden">
   <form class="card" id="setupForm">
     <h1>第一次設定</h1>
-    <p>到 Supabase → Project Settings → API 複製這兩個值。只會存在這台裝置的瀏覽器裡。</p>
+    <p>到 Supabase → Project Settings → API Keys 複製。只會存在這台裝置的瀏覽器裡。</p>
     <label for="sUrl">Project URL</label>
     <input id="sUrl" placeholder="https://xxxx.supabase.co" required>
     <label for="sKey">anon / publishable key（不是 service_role）</label>
@@ -117,11 +190,10 @@ const SUPABASE_ANON_KEY = '';
   </form>
 </div>
 
-<!-- 登入 -->
 <div id="login" class="center hidden">
   <form class="card" id="loginForm">
     <h1>飽福客服後台</h1>
-    <p>AI 先起草，人按送出。</p>
+    <p>LINE・Facebook・Instagram・Threads 統一收件匣</p>
     <label for="email">Email</label>
     <input id="email" type="email" autocomplete="username" required>
     <label for="pw">密碼</label>
@@ -131,33 +203,62 @@ const SUPABASE_ANON_KEY = '';
   </form>
 </div>
 
-<!-- 主畫面 -->
 <div id="app" class="hidden">
   <aside id="side">
     <header>
-      <h1><span>客服收件匣</span><button id="logout">登出</button></h1>
-      <div class="tabs">
-        <button data-tab="todo" class="on">待處理</button>
-        <button data-tab="open">全部</button>
-        <button data-tab="closed">已結案</button>
+      <div class="brandbar">
+        <h1><span class="dot"></span>客服收件匣</h1>
+        <span class="who" id="staffEmail"></span>
+        <button id="logout">登出</button>
       </div>
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="q" placeholder="搜尋名稱、訊息、備註…">
+      </div>
+      <div class="seg" id="seg">
+        <button data-tab="todo" class="on">待處理<span class="n hidden" id="nTodo"></span></button>
+        <button data-tab="done">已完成</button>
+        <button data-tab="all">全部</button>
+        <button data-tab="deleted">已刪除</button>
+      </div>
+      <div class="chips" id="filterTags"></div>
     </header>
     <div id="list"></div>
   </aside>
+
   <section id="main">
     <div id="nochat" class="empty" style="margin:auto">從左邊選一則對話</div>
     <div id="chat" class="hidden" style="display:flex;flex-direction:column;min-height:0;flex:1">
       <div id="mainhead">
-        <button id="back">‹ 返回</button>
-        <div class="who"><b id="whoName"></b><span id="whoMeta"></span></div>
-        <button id="closeBtn"></button>
+        <button id="back" class="icon">‹</button>
+        <div class="avatar" id="hAvatar"></div>
+        <div class="who">
+          <div class="nm"><span id="whoName"></span><span id="whoBrand" class="bpill"></span></div>
+          <div class="sub"><span id="whoPf"></span><span id="window"></span></div>
+        </div>
+        <div class="acts">
+          <button id="tagBtn">＋ 標籤</button>
+          <button id="doneBtn" class="ok">✓ 標記完成</button>
+          <button id="delBtn" class="danger">刪除</button>
+        </div>
+      </div>
+      <div id="delnote" class="delnote hidden">此對話已刪除（客人再傳訊會自動回到待處理）。</div>
+      <div id="tagsrow">
+        <span class="lbl">標籤</span>
+        <div class="chips" id="convTags"></div>
+        <div id="noteWrap"><span class="lbl">備註</span><input id="noteInput" placeholder="公司名、聯絡人、偏好…（離開欄位自動儲存）"></div>
+      </div>
+      <div id="tagpick" class="hidden">
+        <div class="chips" id="pickChips"></div>
+        <input id="newTag" placeholder="輸入新標籤後按 Enter" maxlength="20">
+        <span class="hint" style="color:var(--muted)">點標籤即加入／移除；新標籤會存進字典供所有客人使用。</span>
       </div>
       <div id="msgs"></div>
       <div id="composer">
-        <div id="draftlabel"><span id="draftTitle"></span><span id="window"></span></div>
+        <div id="draftlabel"><span id="draftTitle"></span></div>
         <div id="note" class="hidden"></div>
         <div id="state" class="hidden"></div>
-        <textarea id="reply" placeholder="輸入回覆…"></textarea>
+        <textarea id="reply" placeholder="輸入回覆…（Ctrl/⌘ + Enter 送出）"></textarea>
         <div class="actions">
           <button id="discard" class="hidden">不採用草稿</button>
           <span class="hint hidden" id="edited">已修改</span>
@@ -168,6 +269,7 @@ const SUPABASE_ANON_KEY = '';
     </div>
   </section>
 </div>
+<div class="toast" id="toast"></div>
 
 <script>
 (function(){
@@ -178,9 +280,10 @@ const SUPABASE_ANON_KEY = '';
     set(k,v){ try { localStorage.setItem(k,v); } catch(e){} },
   };
   const PLATFORM = { line:'LINE', facebook:'Facebook', instagram:'Instagram', threads:'Threads' };
+  const PF_SHORT = { line:'L', facebook:'f', instagram:'IG', threads:'@' };
 
-  let sb = null, tab = 'todo', convs = [], drafts = {}, current = null, currentDraft = null;
-  let loadedDraftId = null, dirty = false, refreshTimer = null;
+  let sb = null, tab = 'todo', convs = [], drafts = {}, tagDict = [], current = null, currentDraft = null;
+  let loadedDraftId = null, dirty = false, refreshTimer = null, filterTag = '', q = '', staffEmail = '';
 
   // ---------- 啟動 ----------
   const url = SUPABASE_URL || store.get('cs_url');
@@ -212,81 +315,136 @@ const SUPABASE_ANON_KEY = '';
     if (error) { $('loginErr').textContent = '登入失敗：' + error.message; return; }
     enter();
   });
-
   $('logout').addEventListener('click', async () => { await sb.auth.signOut(); location.reload(); });
 
   async function enter(){
     const { data: ok, error } = await sb.rpc('cs_is_staff');
     if (error || !ok) {
-      await sb.auth.signOut();
-      show($('login'), true);
+      await sb.auth.signOut(); show($('login'), true);
       $('loginErr').textContent = error ? ('連線失敗：' + error.message) : '這個帳號不在 cs_staff 白名單內。';
       return;
     }
+    const { data: u } = await sb.auth.getUser();
+    staffEmail = (u && u.user && u.user.email) || '';
+    $('staffEmail').textContent = staffEmail;
     show($('login'), false); show($('app'), true);
     await refresh();
     sb.channel('cs-inbox')
       .on('postgres_changes', { event:'*', schema:'public', table:'cs_conversations' }, scheduleRefresh)
       .on('postgres_changes', { event:'*', schema:'public', table:'cs_messages' }, scheduleRefresh)
       .on('postgres_changes', { event:'*', schema:'public', table:'cs_drafts' }, scheduleRefresh)
+      .on('postgres_changes', { event:'*', schema:'public', table:'cs_tags' }, scheduleRefresh)
       .subscribe();
-    setInterval(refresh, 30000);          // 即時通道斷線時的保底
+    setInterval(refresh, 30000);
     setInterval(renderWindow, 60000);
   }
   function scheduleRefresh(){ clearTimeout(refreshTimer); refreshTimer = setTimeout(refresh, 250); }
 
   // ---------- 資料 ----------
   async function refresh(){
-    const [c, d] = await Promise.all([
-      sb.from('cs_conversations').select('*').order('last_message_at', { ascending:false, nullsFirst:false }).limit(200),
+    const [c, d, t] = await Promise.all([
+      sb.from('cs_conversations').select('*').order('last_message_at', { ascending:false, nullsFirst:false }).limit(300),
       sb.from('cs_drafts').select('*').in('status', ['pending','approved','sending','failed']).order('created_at', { ascending:true }),
+      sb.from('cs_tags').select('*').order('sort').order('name'),
     ]);
     if (c.error) { $('list').innerHTML = ''; $('list').appendChild(emptyEl('讀取失敗：' + c.error.message)); return; }
     convs = c.data || [];
     drafts = {};
-    (d.data || []).forEach(x => { drafts[x.conversation_id] = x; });   // 由舊到新，最後留下最新一份
-    renderList();
-    if (current) {
-      current = convs.find(x => x.id === current.id) || current;
-      await renderChat(false);
-    }
+    (d.data || []).forEach(x => { drafts[x.conversation_id] = x; });
+    tagDict = t.data || [];
+    renderFilterTags(); renderList();
+    if (current) { current = convs.find(x => x.id === current.id) || current; await renderChat(false); }
   }
 
+  const isDeleted = c => !!c.deleted_at;
   function needsAction(c){
     const d = drafts[c.id];
-    return c.status === 'open' && (c.unread_count > 0 || (d && (d.status === 'pending' || d.status === 'failed')));
+    return !isDeleted(c) && c.status === 'open' && (c.unread_count > 0 || (d && (d.status === 'pending' || d.status === 'failed')));
   }
+  const tagColor = name => { const t = tagDict.find(x => x.name === name); return (t && t.color) || '#6b7280'; };
+  const brandStyle = b => BRAND_STYLE[b] || { bg:'#374151', fg:'#fff' };
 
   // ---------- 清單 ----------
-  document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('#seg button').forEach(b => b.addEventListener('click', () => {
     tab = b.dataset.tab;
-    document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x === b));
+    document.querySelectorAll('#seg button').forEach(x => x.classList.toggle('on', x === b));
     renderList();
   }));
+  $('q').addEventListener('input', () => { q = $('q').value.trim().toLowerCase(); renderList(); });
 
   function emptyEl(t){ const e = document.createElement('div'); e.className = 'empty'; e.textContent = t; return e; }
   function el(tag, cls, text){ const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function avatarEl(c){
+    const a = el('div', 'avatar');
+    if (c.picture_url) { const img = document.createElement('img'); img.src = c.picture_url; img.alt = ''; img.referrerPolicy = 'no-referrer'; img.onerror = () => { img.remove(); a.prepend(el('span', null, initial(c))); }; a.appendChild(img); }
+    else a.appendChild(el('span', null, initial(c)));
+    a.appendChild(el('span', 'pf ' + c.platform, PF_SHORT[c.platform] || '?'));
+    a.style.background = ({line:'var(--green)',facebook:'var(--accent-soft)',instagram:'var(--pink)',threads:'var(--yellow)'})[c.platform] || 'var(--yellow)';
+    return a;
+  }
+  const initial = c => (c.display_name || '客').trim().slice(0, 1).toUpperCase();
+  function brandPill(b){ const s = brandStyle(b); const e = el('span', 'bpill', b); e.style.background = s.bg; e.style.color = s.fg; return e; }
+  function tagChip(name, small, onRemove){
+    const e = el('span', 'chip tag' + (small ? ' small' : '')); e.style.background = tagColor(name);
+    e.appendChild(el('span', null, name));
+    if (onRemove) { const x = el('span', 'x', '×'); x.addEventListener('click', ev => { ev.stopPropagation(); onRemove(); }); e.appendChild(x); }
+    return e;
+  }
+
+  function renderFilterTags(){
+    const box = $('filterTags'); box.innerHTML = '';
+    const all = el('span', 'chip' + (filterTag ? '' : ' on'), '全部標籤'); all.addEventListener('click', () => { filterTag = ''; renderFilterTags(); renderList(); }); box.appendChild(all);
+    tagDict.forEach(t => {
+      const used = convs.filter(c => (c.tags || []).includes(t.name) && !isDeleted(c)).length;
+      const ch = el('span', 'chip' + (filterTag === t.name ? ' on' : ''));
+      const sw = el('span', 'sw'); sw.style.background = t.color; ch.appendChild(sw);
+      ch.appendChild(el('span', null, t.name + (used ? ' ' + used : '')));
+      ch.addEventListener('click', () => { filterTag = filterTag === t.name ? '' : t.name; renderFilterTags(); renderList(); });
+      box.appendChild(ch);
+    });
+  }
+
+  function visible(c){
+    if (tab === 'deleted') { if (!isDeleted(c)) return false; }
+    else if (isDeleted(c)) return false;
+    else if (tab === 'todo' && !needsAction(c)) return false;
+    else if (tab === 'done' && c.status !== 'closed') return false;
+    if (filterTag && !(c.tags || []).includes(filterTag)) return false;
+    if (q) {
+      const hay = [c.display_name, c.last_message_text, c.note, c.brand, (c.tags||[]).join(' ')].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  }
 
   function renderList(){
+    const nTodo = convs.filter(needsAction).length;
+    $('nTodo').textContent = nTodo; show($('nTodo'), nTodo > 0);
     const list = $('list'); list.innerHTML = '';
-    const rows = convs.filter(c => tab === 'todo' ? needsAction(c) : tab === 'open' ? c.status === 'open' : c.status === 'closed');
-    if (!rows.length) { list.appendChild(emptyEl(tab === 'todo' ? '目前沒有待處理的訊息' : '沒有對話')); return; }
+    const rows = convs.filter(visible);
+    if (!rows.length) { list.appendChild(emptyEl(tab === 'todo' ? '目前沒有待處理的訊息 🎉' : tab === 'deleted' ? '沒有已刪除的對話' : '沒有符合的對話')); return; }
     rows.forEach(c => {
       const d = drafts[c.id];
       const b = el('button', 'conv' + (current && current.id === c.id ? ' on' : ''));
-      const top = el('div', 'top');
-      top.appendChild(el('span', 'name', c.display_name || '（未取得名稱）'));
-      top.appendChild(el('span', 'time', fmtTime(c.last_message_at)));
-      b.appendChild(top);
-      b.appendChild(el('div', 'last', c.last_message_text || ''));
-      const meta = el('div', 'meta');
-      meta.appendChild(el('span', 'pf ' + c.platform, PLATFORM[c.platform] || c.platform));
-      meta.appendChild(el('span', 'brand', c.brand));
-      if (d && d.status === 'failed') meta.appendChild(el('span', 'flag', '送出失敗'));
-      else if (d && d.status === 'pending' && d.needs_human) meta.appendChild(el('span', 'flag', '需人工確認'));
-      else if (d && d.status === 'pending') meta.appendChild(el('span', 'brand', '草稿已備'));
-      if (c.unread_count > 0) meta.appendChild(el('span', 'unread', String(c.unread_count)));
-      b.appendChild(meta);
+      b.appendChild(avatarEl(c));
+      const body = el('div', 'body');
+      const r1 = el('div', 'row1');
+      r1.appendChild(el('span', 'name', c.display_name || '（未取得名稱）'));
+      r1.appendChild(el('span', 'time', fmtTime(c.last_message_at)));
+      body.appendChild(r1);
+      const r2 = el('div', 'row2');
+      r2.appendChild(el('span', 'last', c.last_message_text || ''));
+      if (c.unread_count > 0 && !isDeleted(c)) r2.appendChild(el('span', 'unread', String(c.unread_count)));
+      body.appendChild(r2);
+      const r3 = el('div', 'row3');
+      r3.appendChild(brandPill(c.brand));
+      if (d && d.status === 'failed') r3.appendChild(el('span', 'flag bad', '送出失敗'));
+      else if (d && d.status === 'pending' && d.needs_human) r3.appendChild(el('span', 'flag', '需人工確認'));
+      else if (d && d.status === 'pending') r3.appendChild(el('span', 'flag ok', '草稿已備'));
+      (c.tags || []).slice(0, 3).forEach(t => r3.appendChild(tagChip(t, true)));
+      if ((c.tags || []).length > 3) r3.appendChild(el('span', 'flag', '+' + ((c.tags || []).length - 3)));
+      body.appendChild(r3);
+      b.appendChild(body);
       b.addEventListener('click', () => openConv(c));
       list.appendChild(b);
     });
@@ -294,44 +452,143 @@ const SUPABASE_ANON_KEY = '';
 
   // ---------- 對話 ----------
   async function openConv(c){
-    current = c; loadedDraftId = null; dirty = false;
+    current = c; loadedDraftId = null; dirty = false; show($('tagpick'), false);
     $('app').classList.add('chat');
     show($('nochat'), false); show($('chat'), true);
     renderList();
     await renderChat(true);
-    if (c.unread_count > 0) sb.rpc('cs_mark_read', { p_conversation_id: c.id }).then(scheduleRefresh);
+    if (c.unread_count > 0 && !isDeleted(c)) sb.rpc('cs_mark_read', { p_conversation_id: c.id }).then(scheduleRefresh);
   }
-  $('back').addEventListener('click', () => { $('app').classList.remove('chat'); current = null; renderList(); });
+  $('back').addEventListener('click', () => { $('app').classList.remove('chat'); current = null; show($('tagpick'), false); renderList(); });
 
   async function renderChat(scroll){
     const c = current; if (!c) return;
+    const hA = $('hAvatar'); hA.replaceWith(avatarEl(c)); document.querySelector('#mainhead .avatar').id = 'hAvatar';
     $('whoName').textContent = c.display_name || '（未取得名稱）';
-    $('whoMeta').textContent = (PLATFORM[c.platform] || c.platform) + '・' + c.brand;
-    $('closeBtn').textContent = c.status === 'open' ? '結案' : '重新開啟';
+    const bp = $('whoBrand'); const s = brandStyle(c.brand); bp.textContent = c.brand; bp.style.background = s.bg; bp.style.color = s.fg;
+    $('whoPf').textContent = PLATFORM[c.platform] || c.platform;
+    const del = isDeleted(c);
+    show($('delnote'), del);
+    $('doneBtn').textContent = c.status === 'open' ? '✓ 標記完成' : '↺ 重新開啟';
+    $('doneBtn').className = c.status === 'open' ? 'ok' : '';
+    $('delBtn').textContent = del ? '還原' : '刪除';
+    $('delBtn').className = del ? 'ok' : 'danger';
+    show($('doneBtn'), !del); show($('tagBtn'), !del);
+    renderConvTags();
+    if (document.activeElement !== $('noteInput')) $('noteInput').value = c.note || '';
 
     const { data: msgs, error } = await sb.from('cs_messages').select('*').eq('conversation_id', c.id)
-      .order('sent_at', { ascending:false }).limit(100);
+      .order('sent_at', { ascending:false }).limit(150);
     if (!current || current.id !== c.id) return;
     const box = $('msgs');
     const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
     box.innerHTML = '';
     if (error) box.appendChild(emptyEl('讀取失敗：' + error.message));
+    let lastDay = '';
     (msgs || []).slice().reverse().forEach(m => {
-      const e = el('div', 'msg ' + m.direction, m.text || '');
-      e.appendChild(el('small', null, fmtTime(m.sent_at, true) + (m.direction === 'out' && m.sent_by ? '・' + m.sent_by : '')));
+      const day = new Date(m.sent_at).toDateString();
+      if (day !== lastDay) { box.appendChild(el('div', 'day', fmtDay(m.sent_at))); lastDay = day; }
+      const kind = m.direction === 'out' ? (m.sent_by === 'vicky-ai' ? 'ai' : m.sent_by === 'meta-auto' ? 'auto' : 'staff') : '';
+      const e = el('div', 'msg ' + m.direction + (kind ? ' ' + kind : ''), m.text || '');
+      const sm = el('small');
+      if (m.direction === 'out') sm.appendChild(el('span', 'by', kind === 'ai' ? '維奇 AI' : kind === 'auto' ? 'Meta 罐頭回覆' : (m.sent_by || '客服')));
+      sm.appendChild(el('span', null, fmtTime(m.sent_at, true)));
+      e.appendChild(sm);
       box.appendChild(e);
     });
     if (scroll || nearBottom) box.scrollTop = box.scrollHeight;
-    renderComposer();
+    show($('composer'), !del);
+    if (!del) renderComposer();
   }
 
+  // ---------- 標籤 / 備註 ----------
+  function renderConvTags(){
+    const box = $('convTags'); box.innerHTML = '';
+    const tags = (current && current.tags) || [];
+    if (!tags.length) box.appendChild(el('span', 'chip', '尚未標記'));
+    tags.forEach(t => box.appendChild(tagChip(t, false, () => setTags(tags.filter(x => x !== t)))));
+    const add = el('span', 'chip add', '＋'); add.addEventListener('click', toggleTagPick); box.appendChild(add);
+  }
+  function renderPick(){
+    const box = $('pickChips'); box.innerHTML = '';
+    const tags = (current && current.tags) || [];
+    tagDict.forEach(t => {
+      const on = tags.includes(t.name);
+      const ch = el('span', 'chip' + (on ? ' tag' : ''), t.name);
+      if (on) ch.style.background = t.color; else { const sw = el('span', 'sw'); sw.style.background = t.color; ch.prepend(sw); }
+      ch.style.cursor = 'pointer';
+      ch.addEventListener('click', () => setTags(on ? tags.filter(x => x !== t.name) : tags.concat(t.name)));
+      box.appendChild(ch);
+    });
+  }
+  function toggleTagPick(ev){
+    const p = $('tagpick');
+    if (!p.classList.contains('hidden')) { show(p, false); return; }
+    renderPick(); show(p, true);
+    const r = (ev && ev.currentTarget || $('tagBtn')).getBoundingClientRect();
+    const main = $('main').getBoundingClientRect();
+    p.style.top = (r.bottom - main.top + 6) + 'px';
+    p.style.left = Math.max(8, Math.min(r.left - main.left, main.width - 290)) + 'px';
+    $('newTag').focus();
+  }
+  $('tagBtn').addEventListener('click', toggleTagPick);
+  document.addEventListener('click', e => { if (!$('tagpick').contains(e.target) && !$('tagBtn').contains(e.target) && !e.target.classList.contains('add')) show($('tagpick'), false); });
+  $('newTag').addEventListener('keydown', async e => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const name = $('newTag').value.trim(); if (!name || !current) return;
+    const palette = ['#1d4ed8','#15803d','#0e7490','#7c3aed','#b45309','#b42318','#be185d','#4d7c0f','#0f766e','#6d28d9'];
+    const color = palette[tagDict.length % palette.length];
+    const r = await sb.rpc('cs_add_tag', { p_name: name, p_color: color });
+    if (r.error) { toast('新增失敗：' + r.error.message); return; }
+    if (!tagDict.find(t => t.name === name)) tagDict.push({ name, color, sort: 100 });
+    $('newTag').value = '';
+    await setTags(((current.tags) || []).concat(name));
+  });
+  async function setTags(tags){
+    if (!current) return;
+    const uniq = [...new Set(tags)];
+    current.tags = uniq; renderConvTags(); renderPick(); renderList();
+    const r = await sb.rpc('cs_set_tags', { p_conversation_id: current.id, p_tags: uniq });
+    if (r.error) toast('標籤儲存失敗：' + r.error.message); else { toast('標籤已更新'); scheduleRefresh(); }
+  }
+  $('noteInput').addEventListener('change', async () => {
+    if (!current) return;
+    const v = $('noteInput').value.trim();
+    const r = await sb.rpc('cs_set_note', { p_conversation_id: current.id, p_note: v });
+    if (r.error) toast('備註儲存失敗：' + r.error.message); else { current.note = v; toast('備註已儲存'); }
+  });
+
+  // ---------- 狀態 / 刪除 ----------
+  $('doneBtn').addEventListener('click', async () => {
+    if (!current) return;
+    const next = current.status === 'open' ? 'closed' : 'open';
+    const r = await sb.rpc('cs_set_status', { p_conversation_id: current.id, p_status: next });
+    if (r.error) { toast('操作失敗：' + r.error.message); return; }
+    toast(next === 'closed' ? '已標記完成' : '已重新開啟');
+    await refresh();
+  });
+  $('delBtn').addEventListener('click', async () => {
+    if (!current) return;
+    if (isDeleted(current)) {
+      const r = await sb.rpc('cs_restore_conversation', { p_conversation_id: current.id });
+      if (r.error) { toast('還原失敗：' + r.error.message); return; }
+      toast('已還原'); await refresh(); return;
+    }
+    if (!confirm('確定刪除「' + (current.display_name || '這位客人') + '」的對話？\n對話會從列表移除（可在「已刪除」還原）；客人再傳訊會自動回到待處理。')) return;
+    const r = await sb.rpc('cs_delete_conversation', { p_conversation_id: current.id });
+    if (r.error) { toast('刪除失敗：' + r.error.message); return; }
+    toast('已刪除');
+    current = null; $('app').classList.remove('chat'); show($('chat'), false); show($('nochat'), true);
+    await refresh();
+  });
+
+  // ---------- 回覆 ----------
   function renderComposer(){
     const d = drafts[current.id] || null;
     currentDraft = d;
     const busy = d && (d.status === 'approved' || d.status === 'sending');
     const ta = $('reply');
-
-    // 只有「換了一份新草稿」才覆蓋輸入框，避免你打到一半被洗掉
     const draftKey = d ? d.id + ':' + d.status : 'none';
     if (draftKey !== loadedDraftId) {
       if (!dirty || !ta.value.trim()) {
@@ -340,23 +597,19 @@ const SUPABASE_ANON_KEY = '';
       }
       loadedDraftId = draftKey;
     }
-
-    $('draftTitle').textContent = d && d.status === 'pending' ? (d.ai_text ? 'AI 草稿（維奇）' : '需要人工回覆')
+    $('draftTitle').textContent = d && d.status === 'pending' ? (d.ai_text ? 'AI 草稿（維奇）— 可修改後送出' : '需要人工回覆')
       : d && d.status === 'failed' ? '上次送出失敗' : busy ? '傳送中…' : '手動回覆';
-
     const note = $('note');
     show(note, !!(d && d.status === 'pending' && (d.note || d.needs_human)));
     if (d) { note.textContent = (d.needs_human ? '⚠ 需人工確認　' : '') + (d.note || ''); note.classList.toggle('plain', !d.needs_human); }
-
     const st = $('state');
     show(st, !!(d && (d.status === 'failed' || busy)));
     if (d && d.status === 'failed') { st.className = 'bad'; st.textContent = '送出失敗：' + (d.error || '未知原因') + '　可修改後再按送出重試。'; }
     else if (busy) {
       const mins = (Date.now() - new Date(d.approved_at).getTime()) / 60000;
       st.className = 'wait';
-      st.textContent = mins > 2 ? '已超過 2 分鐘還沒有送出結果。請到 n8n 的 Executions 檢查「客服-送出回覆」，並先到 LINE 後台確認客人是否已收到，再決定要不要重打一則。' : '已按送出，等待 n8n 回報結果…';
+      st.textContent = mins > 2 ? '已超過 2 分鐘還沒有送出結果。請到 n8n 的 Executions 檢查「客服-送出回覆 v2」，並先確認客人是否已收到，再決定要不要重打一則。' : '已按送出，等待 n8n 回報結果…';
     }
-
     ta.disabled = !!busy && (Date.now() - new Date(d.approved_at).getTime()) < 120000;
     $('send').disabled = ta.disabled;
     show($('discard'), !!(d && (d.status === 'pending' || d.status === 'failed')));
@@ -368,11 +621,12 @@ const SUPABASE_ANON_KEY = '';
     const w = $('window'); if (!current) return;
     if (current.platform === 'line' || !current.last_inbound_at) { w.textContent = ''; w.className = ''; return; }
     const left = 24 * 3600e3 - (Date.now() - new Date(current.last_inbound_at).getTime());
-    if (left <= 0) { w.textContent = '已超過 24 小時回覆期限'; w.className = 'bad'; }
-    else { const h = Math.floor(left / 3600e3), m = Math.floor(left % 3600e3 / 60000); w.textContent = `回覆期限剩 ${h} 小時 ${m} 分`; w.className = left < 3 * 3600e3 ? 'bad' : ''; }
+    if (left <= 0) { w.textContent = '・已超過 24 小時回覆期限'; w.className = 'bad'; }
+    else { const h = Math.floor(left / 3600e3), m = Math.floor(left % 3600e3 / 60000); w.textContent = `・回覆期限剩 ${h} 小時 ${m} 分`; w.className = left < 3 * 3600e3 ? 'bad' : ''; }
   }
 
   $('reply').addEventListener('input', () => { dirty = true; show($('edited'), !!(currentDraft && currentDraft.status === 'pending')); });
+  $('reply').addEventListener('keydown', e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); $('send').click(); } });
 
   $('send').addEventListener('click', async () => {
     const text = $('reply').value.trim();
@@ -398,20 +652,24 @@ const SUPABASE_ANON_KEY = '';
     await refresh();
   });
 
-  $('closeBtn').addEventListener('click', async () => {
-    if (!current) return;
-    await sb.rpc('cs_set_status', { p_conversation_id: current.id, p_status: current.status === 'open' ? 'closed' : 'open' });
-    await refresh();
-  });
-
+  // ---------- 小工具 ----------
+  let toastTimer = null;
+  function toast(t){ const e = $('toast'); e.textContent = t; e.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => e.classList.remove('show'), 1800); }
   function fmtTime(iso, full){
     if (!iso) return '';
     const d = new Date(iso), now = new Date();
     const hm = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
     const sameDay = d.toDateString() === now.toDateString();
-    if (sameDay && !full) return hm;
+    if (sameDay) return hm;
     const md = (d.getMonth()+1) + '/' + d.getDate();
-    return sameDay ? hm : (full ? md + ' ' + hm : md);
+    return full ? md + ' ' + hm : md;
+  }
+  function fmtDay(iso){
+    const d = new Date(iso), now = new Date();
+    if (d.toDateString() === now.toDateString()) return '今天';
+    const y = new Date(now); y.setDate(now.getDate() - 1);
+    if (d.toDateString() === y.toDateString()) return '昨天';
+    return (d.getFullYear() !== now.getFullYear() ? d.getFullYear() + '/' : '') + (d.getMonth()+1) + '/' + d.getDate();
   }
 })();
 </script>
