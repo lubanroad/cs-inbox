@@ -224,6 +224,20 @@ const BRAND_STYLE = {
     <button class="primary" id="loginBtn">登入</button>
     <div class="err" id="loginErr"></div>
     <p style="margin:14px 0 0;text-align:center">新客服人員？負責人加入名單後，<button type="button" class="linkish" id="signupBtn">用這個 Email 註冊</button></p>
+    <p style="margin:8px 0 0;text-align:center"><button type="button" class="linkish" id="forgotBtn">忘記密碼？寄重設連結到上方 Email</button></p>
+  </form>
+</div>
+
+<div id="recover" class="center hidden">
+  <form class="card" id="recoverForm">
+    <h1>設定新密碼</h1>
+    <p>請輸入新密碼（至少 8 碼），設定後直接進入後台。</p>
+    <label for="newPw">新密碼</label>
+    <input id="newPw" type="password" autocomplete="new-password" minlength="8" required>
+    <label for="newPw2">再輸入一次</label>
+    <input id="newPw2" type="password" autocomplete="new-password" minlength="8" required>
+    <button class="primary" id="recoverBtn">儲存並登入</button>
+    <div class="err" id="recoverErr"></div>
   </form>
 </div>
 
@@ -342,9 +356,36 @@ const BRAND_STYLE = {
   async function boot(u, k){
     if (!window.supabase) { show($('setup'), true); $('setupErr').textContent = '載入 Supabase 程式庫失敗，請確認網路後重新整理。'; return; }
     sb = window.supabase.createClient(u, k);
+    // 從「重設密碼」信件連結進來：網址帶 type=recovery，先讓使用者設新密碼
+    const isRecovery = /type=recovery/.test(location.hash) || /type=recovery/.test(location.search);
+    sb.auth.onAuthStateChange((ev) => { if (ev === 'PASSWORD_RECOVERY') { show($('login'), false); show($('recover'), true); } });
     const { data } = await sb.auth.getSession();
+    if (isRecovery && data.session) { show($('recover'), true); return; }
     if (data.session) enter(); else show($('login'), true);
   }
+
+  $('forgotBtn').addEventListener('click', async () => {
+    const email = $('email').value.trim();
+    $('loginErr').style.color = ''; $('loginErr').textContent = '';
+    if (!email) { $('loginErr').textContent = '請先在上方填 Email，再按忘記密碼。'; return; }
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+    if (error) { $('loginErr').textContent = '寄送失敗：' + error.message; return; }
+    $('loginErr').style.color = 'var(--ok)';
+    $('loginErr').textContent = '已寄出重設連結，請到信箱（含垃圾郵件）點連結回來設定新密碼。';
+  });
+  $('recoverForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const a = $('newPw').value, b = $('newPw2').value;
+    $('recoverErr').textContent = '';
+    if (a.length < 8) { $('recoverErr').textContent = '密碼至少 8 碼。'; return; }
+    if (a !== b) { $('recoverErr').textContent = '兩次輸入的密碼不一樣。'; return; }
+    $('recoverBtn').disabled = true;
+    const { error } = await sb.auth.updateUser({ password: a });
+    $('recoverBtn').disabled = false;
+    if (error) { $('recoverErr').textContent = '設定失敗：' + error.message; return; }
+    history.replaceState(null, '', location.pathname);
+    show($('recover'), false); enter();
+  });
 
   $('loginForm').addEventListener('submit', async e => {
     e.preventDefault();
